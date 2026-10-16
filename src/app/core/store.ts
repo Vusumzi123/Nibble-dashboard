@@ -1,0 +1,135 @@
+import { Injectable, computed, inject, signal } from '@angular/core';
+
+import { ApiService, errorText } from './api.service';
+import {
+  ConfigSnapshot,
+  Health,
+  HeartbeatSnapshot,
+  HeartbeatTick,
+  MessageRow,
+  Metrics,
+} from './models';
+
+const POLL_MS = 2000;
+
+// Central polling store: one shared 2 s tick feeds every widget, so the
+// backend sees a single steady reader instead of one poll per component.
+@Injectable({ providedIn: 'root' })
+export class DashboardStore {
+  private readonly api = inject(ApiService);
+
+  readonly health = signal<Health | null>(null);
+  readonly heartbeat = signal<HeartbeatSnapshot | null>(null);
+  readonly metrics = signal<Metrics | null>(null);
+  readonly config = signal<ConfigSnapshot | null>(null);
+  readonly ticks = signal<HeartbeatTick[]>([]);
+  readonly messages = signal<MessageRow[]>([]);
+  readonly lastSession = signal<string | null>(null);
+  readonly error = signal<string | null>(null);
+  readonly lastUpdated = signal<number | null>(null);
+  readonly now = signal<number>(Date.now());
+
+  readonly inFlight = computed(() => this.heartbeat()?.current?.state === 'in-flight');
+
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private clockTimer: ReturnType<typeof setInterval> | null = null;
+  private busy = false;
+  private loadedConfig = false;
+
+  async start(): Promise<void> {
+    await this.loadStatic();
+    await this.poll();
+    if (this.pollTimer === null) {
+      this.pollTimer = setInterval(() => void this.poll(), POLL_MS);
+    }
+    if (this.clockTimer === null) {
+      this.clockTimer = setInterval(() => this.now.set(Date.now()), 1000);
+    }
+  }
+
+  stop(): void {
+    if (this.pollTimer !== null) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+    if (this.clockTimer !== null) {
+      clearInterval(this.clockTimer);
+      this.clockTimer = null;
+    }
+  }
+
+  private async loadStatic(): Promise<void> {
+    try {
+      const [health, config] = await Promise.all([this.api.health(), this.api.config()]);
+      this.health.set(health);
+      this.config.set(config);
+      this.loadedConfig = true;
+      this.error.set(null);
+    } catch (err) {
+      this.error.set(errorText(err));
+    }
+  }
+
+  async refreshConfig(): Promise<void> {
+    try {
+      this.config.set(await this.api.config());
+      this.error.set(null);
+    } catch (err) {
+      this.error.set(errorText(err));
+    }
+  }
+
+  private async poll(): Promise<void> {
+    if (this.busy) return;
+    this.busy = true;
+    try {
+      const [heartbeat, ticksPage, metrics] = await Promise.all([
+        this.api.heartbeat(),
+        this.api.ledger('heartbeat.log', 500).catch(() => ({ name: 'heartbeat.log', entries: [] as unknown[] })),
+        this.api.metrics().catch(() => null),
+      ]);
+      this.heartbeat.set(heartbeat);
+      this.ticks.set((ticksPage.entries as HeartbeatTick[]).filter((t) => t && typeof t === 'object'));
+      if (metrics) this.metrics.set(metrics);
+      if (!this.loadedConfig && metrics) {
+        this.config.set(metrics.config);
+        this.loadedConfig = true;
+      }
+      this.lastUpdated.set(Date.now());
+      this.error.set(null);
+      await this.pollSession(heartbeat);
+    } catch (err) {
+      this.error.set(errorText(err));
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  // Keep the output widget fed: prefer the in-flight child session; otherwise
+  // stay on the most recent mission session (so the transcript survives idle).
+  private async pollSession(heartbeat: HeartbeatSnapshot): Promise<void> {
+    const directory = this.health()?.directory;
+    if (!directory) return;
+
+    const live = heartbeat.current?.session ?? null;
+    if (live) this.lastSession.set(live);
+
+    let session = this.lastSession();
+    if (!session && this.ticks().length > 0) {
+      session = await this.discoverSession(directory).catch(() => null);
+      if (session) this.lastSession.set(session);
+    }
+    if (!session) return;
+
+    const rows = await this.api.sessionMessages(session, directory).catch(() => null);
+    if (rows) this.messages.set(rows);
+  }
+
+  private async discoverSession(directory: string): Promise<string | null> {
+    const list = await this.api.sessions(directory);
+    const missions = (Array.isArray(list) ? list : [])
+      .filter((s) => typeof s.title === 'string' && s.title.startsWith('heartbeat:'))
+      .sort((a, b) => (b.time?.updated ?? 0) - (a.time?.updated ?? 0));
+    return missions[0]?.id ?? null;
+  }
+}

@@ -1,0 +1,3 @@
+.ph-panel--accent {
+  transition: box-shadow var(--ph-transition-base);
+}

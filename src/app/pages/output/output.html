@@ -1,0 +1,66 @@
+<h1 class="mb-1">Output &amp; thoughts</h1>
+<p class="text-muted mb-4">
+  The full child-session transcript — assistant text, reasoning traces
+  ("thoughts"), and tool calls — streamed through the backend's
+  <code>opencode serve</code> proxy. Follows the live mission, then stays on the
+  most recent one.
+</p>
+
+<div class="ph-panel mb-3">
+  <div class="ph-panel__header">
+    <span class="mono">{{ store.lastSession() ?? 'no session' }}</span>
+    @if (store.inFlight()) {
+      <span class="badge text-bg-success ms-2">live</span>
+    }
+  </div>
+  <div class="ph-panel__body">
+    @if (store.messages().length === 0) {
+      <p class="empty mb-0">
+        No session transcript yet. Run a heartbeat mission and its output will
+        appear here within a couple of seconds.
+      </p>
+    } @else {
+      <div class="stream">
+        @for (m of store.messages(); track m.info?.id ?? $index) {
+          <article class="msg">
+            <div class="msg__head">
+              <span [class.msg__role--assistant]="role(m) === 'assistant'">{{ role(m) }}</span>
+              <span class="ms-auto">{{ fmtTime(created(m)) }}</span>
+            </div>
+            <div class="msg__body">
+              @for (p of (m.parts ?? []); track $index) {
+                @switch (p.type) {
+                  @case ('text') {
+                    @if (partText(p)) {
+                      <pre class="part-text">{{ partText(p) }}</pre>
+                    }
+                  }
+                  @case ('reasoning') {
+                    @if (partText(p)) {
+                      <pre class="part-thought">{{ partText(p) }}</pre>
+                    }
+                  }
+                  @case ('tool') {
+                    <details class="tool-card">
+                      <summary>
+                        <span class="badge text-bg-warning">{{ p.tool ?? 'tool' }}</span>
+                        <span class="muted">{{ toolTitle(p) }}</span>
+                        <span class="badge text-bg-secondary ms-auto">{{ toolStatus(p) }}</span>
+                      </summary>
+                      @if (toolInput(p)) {
+                        <pre>{{ toolInput(p) }}</pre>
+                      }
+                      @if (toolOutput(p)) {
+                        <pre>{{ toolOutput(p) }}</pre>
+                      }
+                    </details>
+                  }
+                }
+              }
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </div>
+</div>

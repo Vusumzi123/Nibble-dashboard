@@ -1,0 +1,128 @@
+<h1 class="mb-1">Metrics</h1>
+<p class="text-muted mb-4">
+  Rollups over the per-tick NDJSON ledger (<code>logs/heartbeat.log</code>):
+  token spend, mission runs, execution time, cadence, and errors.
+</p>
+
+<div class="stat-grid mb-4">
+  <div class="stat">
+    <div class="stat__label">total token spend</div>
+    <div class="stat__value">{{ fmtTokens(totalTokens()) }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat__label">ticks logged</div>
+    <div class="stat__value">{{ fmtNumber(ticks().length) }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat__label">missions run</div>
+    <div class="stat__value">{{ fmtNumber(runs()) }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat__label">completed</div>
+    <div class="stat__value stat__value--success">{{ fmtNumber(completed()) }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat__label">errors</div>
+    <div class="stat__value" [class.stat__value--danger]="errors() > 0">{{ fmtNumber(errors()) }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat__label">timeouts</div>
+    <div class="stat__value">{{ fmtNumber(timeouts()) }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat__label">avg exec time</div>
+    <div class="stat__value">{{ fmtDuration(avgDuration()) }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat__label">avg cadence</div>
+    <div class="stat__value">{{ fmtDuration(cadence()?.avg) }}</div>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-6">
+    <h2 class="section-title mt-0">Mood &amp; backlog</h2>
+    <div class="ph-panel">
+      <div class="ph-panel__body">
+        <dl class="kv">
+          <dt>mood valence</dt>
+          <dd>{{ mood() ? mood()!.valence.toFixed(2) : '—' }}</dd>
+          <dt>mood arousal</dt>
+          <dd>{{ mood() ? mood()!.arousal.toFixed(2) : '—' }}</dd>
+          <dt>backlog total</dt>
+          <dd>{{ fmtNumber(backlog()?.total ?? null) }}</dd>
+        </dl>
+        @if (statusEntries().length > 0) {
+          <div class="mt-2">
+            @for (entry of statusEntries(); track entry[0]) {
+              <span class="badge text-bg-secondary me-1">{{ entry[0] }}: {{ entry[1] }}</span>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <h2 class="section-title mt-0">Cadence</h2>
+    <div class="ph-panel">
+      <div class="ph-panel__body">
+        @if (cadence(); as c) {
+          <dl class="kv">
+            <dt>interval avg</dt><dd>{{ fmtDuration(c.avg) }}</dd>
+            <dt>interval min</dt><dd>{{ fmtDuration(c.min) }}</dd>
+            <dt>interval max</dt><dd>{{ fmtDuration(c.max) }}</dd>
+            <dt>intervals</dt><dd>{{ fmtNumber(c.n) }}</dd>
+          </dl>
+          <p class="muted small mb-0 mt-2">Gaps between consecutive ticks (B7 backoff stretches these).</p>
+        } @else {
+          <p class="empty mb-0">Not enough ticks to measure cadence.</p>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 class="section-title">Per-mission rollup</h2>
+@if (missions().length === 0) {
+  <p class="empty">No mission runs recorded yet.</p>
+} @else {
+  <table class="table table-sm table-striped table-hover tick-table mb-4">
+    <thead>
+      <tr><th>mission</th><th>runs</th><th>completed</th><th>failed</th><th>tokens</th></tr>
+    </thead>
+    <tbody>
+      @for (m of missions(); track m.mission) {
+        <tr>
+          <td class="mono">{{ m.mission }}</td>
+          <td>{{ m.count }}</td>
+          <td class="text-success">{{ m.completed }}</td>
+          <td [class.text-danger]="m.failed > 0">{{ m.failed }}</td>
+          <td>{{ fmtTokens(m.tokens) }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}
+
+<h2 class="section-title">Errors</h2>
+@if (errorRows().length === 0) {
+  <p class="empty">No errors recorded.</p>
+} @else {
+  <table class="table table-sm table-striped tick-table">
+    <thead>
+      <tr><th>time</th><th>tick</th><th>phase</th><th>error</th><th>message</th></tr>
+    </thead>
+    <tbody>
+      @for (t of errorRows(); track t.ts + '-' + (t.tick ?? 'x')) {
+        <tr>
+          <td>{{ fmtTime(t.ts) }}</td>
+          <td>{{ t.tick ?? '—' }}</td>
+          <td class="mono">{{ t.error?.phase ?? t.gate ?? '—' }}</td>
+          <td class="mono">{{ t.error?.name ?? '—' }}</td>
+          <td class="wrap">{{ t.error?.message ?? t.reason ?? '' }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}
