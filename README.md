@@ -29,6 +29,12 @@ exposes the schema-validated config writer; this app just renders and drives it.
    `autonomy.heartbeat.frequency`, `in_progress_lock`, `mission_token_budget`,
    `gate_scope`). Writes go through the backend's comment-preserving,
    round-trip-validated writer.
+5. **Missions** — every mission offered to the heartbeat, with a switch to
+   enable/disable each one. Toggling writes the restrict-only overlay
+   `autonomy.missions.<id>.enabled` (off writes `enabled: false`, on removes
+   it); a mission whose own file disables it is shown file-disabled and cannot
+   be re-enabled here.
+   *Source:* `.opencode/missions/*.md` + `autonomy.missions` (`/api/missions`).
 
 The app reads data from **the folder it is launched for** — the opencode
 project you point it at (default: the current directory).
@@ -70,8 +76,10 @@ This project depends on the **Nibble** changes that back the widgets:
   records `duration_ms` per tick.
 - `lib/autonomy.ts` — the top-level `heartbeat:` section is writable.
 - `lib/dashboard.ts` — `configSnapshot().heartbeat` + `heartbeatSnapshot()`.
-- `lib/dashboard-server.ts` — `GET /api/heartbeat`, static SPA asset serving,
-  and the `DASHBOARD_STATIC_DIR` CLI hook.
+- `lib/dashboard.ts` — `missionsSnapshot()` + `setMissionEnabled()` and
+  `loadMissionStates()` in `lib/missions.ts` for the missions widget.
+- `lib/dashboard-server.ts` — `GET /api/heartbeat`, `GET`/`PUT /api/missions`,
+  static SPA asset serving, and the `DASHBOARD_STATIC_DIR` CLI hook.
 
 ## Theming
 

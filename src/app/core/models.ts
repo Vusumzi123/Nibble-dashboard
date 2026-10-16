@@ -134,6 +134,43 @@ export interface WriteResult {
   applied: Record<string, unknown>;
 }
 
+// Missions widget (backend card 8 extension). The mission list is the
+// filesystem (`.opencode/missions/*.md`); the restrict-only overlay
+// `autonomy.missions.<id>.*` can disable a mission but never re-enable one the
+// file itself disables.
+export interface MissionOverlay {
+  enabled?: boolean;
+  min_level?: number;
+  frequency?: string;
+  menus?: string[];
+  [key: string]: unknown;
+}
+
+export interface MissionView {
+  id: string;
+  title: string;
+  frequency: string;
+  menus: string[];
+  min_level: number;
+  approval: string;
+  candidacy: string;
+  agent: string;
+  /** Effective enabled state after the overlay. */
+  enabled: boolean;
+  /** The mission file's own `enabled` — false means the overlay cannot turn it on. */
+  file_enabled: boolean;
+  overlay: MissionOverlay | null;
+}
+
+export interface MissionsSnapshot {
+  missions: MissionView[];
+}
+
+export interface MissionToggleResult {
+  id: string;
+  enabled: boolean;
+}
+
 // opencode serve shapes (proxied through /api/serve) — structurally loose.
 export interface SessionInfo {
   id: string;

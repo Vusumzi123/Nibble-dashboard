@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 
 import { FlightPage } from './pages/flight/flight';
 import { MetricsPage } from './pages/metrics/metrics';
+import { MissionsPage } from './pages/missions/missions';
 import { OutputPage } from './pages/output/output';
 import { SetupPage } from './pages/setup/setup';
 
@@ -10,6 +11,7 @@ export const routes: Routes = [
   { path: 'flight', component: FlightPage, title: 'Flight — Nibble heartbeat' },
   { path: 'output', component: OutputPage, title: 'Output — Nibble heartbeat' },
   { path: 'metrics', component: MetricsPage, title: 'Metrics — Nibble heartbeat' },
+  { path: 'missions', component: MissionsPage, title: 'Missions — Nibble heartbeat' },
   { path: 'setup', component: SetupPage, title: 'Setup — Nibble heartbeat' },
   { path: '**', redirectTo: 'flight' },
 ];

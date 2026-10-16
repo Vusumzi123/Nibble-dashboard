@@ -9,6 +9,8 @@ import {
   HeartbeatSnapshot,
   MessageRow,
   Metrics,
+  MissionToggleResult,
+  MissionsSnapshot,
   SessionInfo,
   WriteResult,
 } from './models';
@@ -53,6 +55,10 @@ export class ApiService {
     return firstValueFrom(this.http.get<BacklogSnapshot>('/api/backlog'));
   }
 
+  missions(): Promise<MissionsSnapshot> {
+    return firstValueFrom(this.http.get<MissionsSnapshot>('/api/missions'));
+  }
+
   ledger(name: string, limit = 200): Promise<{ name: string; entries: unknown[] }> {
     const query = new URLSearchParams({ limit: String(limit) });
     return firstValueFrom(
@@ -79,5 +85,11 @@ export class ApiService {
     const { token } = await firstValueFrom(this.http.get<{ token: string }>('/api/csrf'));
     const headers = new HttpHeaders({ 'x-csrf-token': token });
     return firstValueFrom(this.http.put<WriteResult>('/api/config', { section, values }, { headers }));
+  }
+
+  async setMissionEnabled(id: string, enabled: boolean): Promise<MissionToggleResult> {
+    const { token } = await firstValueFrom(this.http.get<{ token: string }>('/api/csrf'));
+    const headers = new HttpHeaders({ 'x-csrf-token': token });
+    return firstValueFrom(this.http.put<MissionToggleResult>('/api/missions', { id, enabled }, { headers }));
   }
 }

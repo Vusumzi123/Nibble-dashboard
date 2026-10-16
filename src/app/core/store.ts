@@ -8,6 +8,7 @@ import {
   HeartbeatTick,
   MessageRow,
   Metrics,
+  MissionsSnapshot,
 } from './models';
 
 const POLL_MS = 2000;
@@ -22,6 +23,8 @@ export class DashboardStore {
   readonly heartbeat = signal<HeartbeatSnapshot | null>(null);
   readonly metrics = signal<Metrics | null>(null);
   readonly config = signal<ConfigSnapshot | null>(null);
+  readonly missions = signal<MissionsSnapshot | null>(null);
+  readonly missionsError = signal<string | null>(null);
   readonly ticks = signal<HeartbeatTick[]>([]);
   readonly messages = signal<MessageRow[]>([]);
   readonly lastSession = signal<string | null>(null);
@@ -38,6 +41,7 @@ export class DashboardStore {
 
   async start(): Promise<void> {
     await this.loadStatic();
+    await this.loadMissions();
     await this.poll();
     if (this.pollTimer === null) {
       this.pollTimer = setInterval(() => void this.poll(), POLL_MS);
@@ -77,6 +81,23 @@ export class DashboardStore {
     } catch (err) {
       this.error.set(errorText(err));
     }
+  }
+
+  // Missions are not polled (they change rarely); load once on start and on
+  // demand. A 404 (older backend without /api/missions) lands in missionsError
+  // rather than the global unreachable banner.
+  async loadMissions(): Promise<void> {
+    try {
+      this.missions.set(await this.api.missions());
+      this.missionsError.set(null);
+    } catch (err) {
+      this.missionsError.set(errorText(err));
+    }
+  }
+
+  async toggleMission(id: string, enabled: boolean): Promise<void> {
+    await this.api.setMissionEnabled(id, enabled);
+    await this.loadMissions();
   }
 
   private async poll(): Promise<void> {
