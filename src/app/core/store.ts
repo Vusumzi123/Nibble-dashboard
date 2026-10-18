@@ -148,8 +148,15 @@ export class DashboardStore {
 
   private async discoverSession(directory: string): Promise<string | null> {
     const list = await this.api.sessions(directory);
+    // Runner missions (drain-pipe) have no `heartbeat:` child session; their
+    // transcript lives in the writer session the provider spawns.
+    const TRANSCRIPT_TITLES = ['heartbeat:', 'knowledge-consolidate'];
     const missions = (Array.isArray(list) ? list : [])
-      .filter((s) => typeof s.title === 'string' && s.title.startsWith('heartbeat:'))
+      .filter(
+        (s) =>
+          typeof s.title === 'string' &&
+          TRANSCRIPT_TITLES.some((prefix) => (s.title as string).startsWith(prefix)),
+      )
       .sort((a, b) => (b.time?.updated ?? 0) - (a.time?.updated ?? 0));
     return missions[0]?.id ?? null;
   }
