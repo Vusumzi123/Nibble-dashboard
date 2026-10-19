@@ -63,6 +63,48 @@
   animation: dash-pulse 1.1s ease-in-out infinite;
 }
 
+.dash-memory {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ph-space-2);
+  font-size: var(--ph-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ph-text-muted);
+  white-space: nowrap;
+}
+
+.dash-memory__dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--ph-text-muted);
+}
+
+.dash-memory--pending {
+  color: var(--ph-warning);
+}
+
+.dash-memory--pending .dash-memory__dot {
+  background: var(--ph-warning);
+}
+
+.dash-memory--synced {
+  color: var(--ph-success);
+}
+
+.dash-memory--synced .dash-memory__dot {
+  background: var(--ph-success);
+}
+
+.dash-memory--paused {
+  color: var(--ph-text-muted);
+}
+
+.dash-memory--unknown {
+  opacity: 0.65;
+}
+
 @keyframes dash-pulse {
   0%,
   100% {

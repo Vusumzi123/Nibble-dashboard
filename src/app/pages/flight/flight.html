@@ -58,6 +58,38 @@
   </div>
 </div>
 
+<div class="ph-panel mb-4">
+  <div class="ph-panel__header">next tick</div>
+  <div class="ph-panel__body">
+    <div class="stat-grid mb-3">
+      <div class="stat">
+        <div class="stat__label">countdown</div>
+        <div class="stat__value">{{ countdown() }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat__label">cadence</div>
+        <div class="stat__value">{{ fmtDuration(schedule()?.interval_ms) }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat__label">last tick</div>
+        <div class="stat__value">{{ fmtTime(schedule()?.last_tick) }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat__label">noop backoff</div>
+        <div class="stat__value">{{ backoffLabel() }}</div>
+      </div>
+    </div>
+    <dl class="kv">
+      <dt>state</dt>
+      <dd>{{ scheduleState() }}</dd>
+      <dt>frequency</dt>
+      <dd>{{ schedule()?.frequency ?? '—' }}</dd>
+      <dt>next tick at</dt>
+      <dd>{{ fmtTime(schedule()?.next_tick) }}</dd>
+    </dl>
+  </div>
+</div>
+
 @if (store.heartbeat()?.lock_stale) {
   <div class="alert alert-warning" role="alert">
     A heartbeat lock is held past the 30-minute stale window — a tick may be wedged.
@@ -78,11 +110,18 @@
         <th>tokens</th>
         <th>ms</th>
         <th>reason</th>
+        <th>transcript</th>
       </tr>
     </thead>
     <tbody>
       @for (t of recentTicks(); track t.ts + '-' + (t.tick ?? 'x')) {
-        <tr>
+        <tr
+          [class.tick-row--link]="transcriptId(t)"
+          [attr.tabindex]="transcriptId(t) ? 0 : null"
+          [attr.title]="transcriptId(t) ? 'Open the transcript for this tick' : 'No session recorded for this tick'"
+          (click)="openTick(t)"
+          (keydown.enter)="openTick(t)"
+          (keydown.space)="openTick(t); $event.preventDefault()">
           <td>{{ fmtTime(t.ts) }}</td>
           <td>{{ t.tick ?? '—' }}</td>
           <td class="mono">{{ t.verdict ?? '—' }}</td>
@@ -98,8 +137,45 @@
           <td>{{ fmtTokens(t.token_cost) }}</td>
           <td>{{ t.duration_ms ?? '—' }}</td>
           <td class="wrap muted">{{ t.error?.message ?? t.reason ?? '' }}</td>
+          <td>
+            <span class="tick-open" [class.tick-open--muted]="!transcriptId(t)">
+              {{ transcriptId(t) ? 'open' : '—' }}
+            </span>
+          </td>
         </tr>
       }
     </tbody>
   </table>
+}
+
+@if (selected(); as sel) {
+  <div class="tick-drawer-backdrop" aria-hidden="true" (click)="closeTick()"></div>
+  <aside class="tick-drawer" role="dialog" aria-modal="true" aria-labelledby="tick-drawer-title">
+    <header class="tick-drawer__head">
+      <div>
+        <div class="ph-label" id="tick-drawer-title">
+          tick {{ sel.tick ?? '—' }} · {{ sel.mission ?? 'no mission' }}
+        </div>
+        <div class="tick-drawer__meta">
+          {{ fmtTime(sel.ts) }} · {{ sel.outcome ?? '—' }} ·
+          {{ fmtTokens(sel.token_cost) }} tokens
+        </div>
+      </div>
+      <button type="button" class="btn-close ms-auto" aria-label="Close transcript" (click)="closeTick()"></button>
+    </header>
+    <div class="tick-drawer__session mono">{{ drawerSession(sel) }}</div>
+    <div class="tick-drawer__body">
+      @if (detailLoading()) {
+        <p class="empty">Loading transcript…</p>
+      } @else if (detailError(); as err) {
+        <div class="alert alert-warning mb-0" role="alert">
+          Transcript unavailable — {{ err }}
+        </div>
+      } @else if (detailRows().length === 0) {
+        <p class="empty mb-0">This session has no messages.</p>
+      } @else {
+        <app-transcript class="transcript--fill" [rows]="detailRows()" />
+      }
+    </div>
+  </aside>
 }

@@ -6,12 +6,14 @@ import {
   Health,
   HeartbeatSnapshot,
   HeartbeatTick,
+  MemoryPending,
   MessageRow,
   Metrics,
   MissionsSnapshot,
 } from './models';
 
 const POLL_MS = 2000;
+const PENDING_MS = 5000;
 
 // Central polling store: one shared 2 s tick feeds every widget, so the
 // backend sees a single steady reader instead of one poll per component.
@@ -22,6 +24,7 @@ export class DashboardStore {
   readonly health = signal<Health | null>(null);
   readonly heartbeat = signal<HeartbeatSnapshot | null>(null);
   readonly metrics = signal<Metrics | null>(null);
+  readonly memoryPending = signal<MemoryPending | null>(null);
   readonly config = signal<ConfigSnapshot | null>(null);
   readonly missions = signal<MissionsSnapshot | null>(null);
   readonly missionsError = signal<string | null>(null);
@@ -36,15 +39,19 @@ export class DashboardStore {
 
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private clockTimer: ReturnType<typeof setInterval> | null = null;
+  private pendingTimer: ReturnType<typeof setInterval> | null = null;
   private busy = false;
   private loadedConfig = false;
 
   async start(): Promise<void> {
     await this.loadStatic();
     await this.loadMissions();
-    await this.poll();
+    await Promise.all([this.poll(), this.loadMemoryPending()]);
     if (this.pollTimer === null) {
       this.pollTimer = setInterval(() => void this.poll(), POLL_MS);
+    }
+    if (this.pendingTimer === null) {
+      this.pendingTimer = setInterval(() => void this.loadMemoryPending(), PENDING_MS);
     }
     if (this.clockTimer === null) {
       this.clockTimer = setInterval(() => this.now.set(Date.now()), 1000);
@@ -56,9 +63,24 @@ export class DashboardStore {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
     }
+    if (this.pendingTimer !== null) {
+      clearInterval(this.pendingTimer);
+      this.pendingTimer = null;
+    }
     if (this.clockTimer !== null) {
       clearInterval(this.clockTimer);
       this.clockTimer = null;
+    }
+  }
+
+  // The drain backlog is DB-backed and slower than the 2 s widgets, so it has
+  // its own 5 s cadence (the backend also caches for 5 s). A failure hides the
+  // pill instead of tripping the global unreachable banner.
+  async loadMemoryPending(): Promise<void> {
+    try {
+      this.memoryPending.set(await this.api.memoryPending());
+    } catch {
+      this.memoryPending.set(null);
     }
   }
 

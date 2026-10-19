@@ -7,6 +7,7 @@ import {
   ConfigSnapshot,
   Health,
   HeartbeatSnapshot,
+  MemoryPending,
   MessageRow,
   Metrics,
   MissionToggleResult,
@@ -45,6 +46,10 @@ export class ApiService {
 
   metrics(): Promise<Metrics> {
     return firstValueFrom(this.http.get<Metrics>('/api/metrics'));
+  }
+
+  memoryPending(): Promise<MemoryPending> {
+    return firstValueFrom(this.http.get<MemoryPending>('/api/memory/pending'));
   }
 
   heartbeat(): Promise<HeartbeatSnapshot> {

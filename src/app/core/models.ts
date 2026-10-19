@@ -55,11 +55,28 @@ export interface HeartbeatCurrent {
   level: number | null;
 }
 
+export interface HeartbeatSchedule {
+  enabled: boolean;
+  level: number;
+  frequency: string;
+  base_interval_ms: number | null;
+  interval_ms: number | null;
+  noop_streak: number;
+  last_tick: string | null;
+  next_tick: string | null;
+  remaining_ms: number | null;
+  due: boolean;
+  paused: boolean;
+  off: boolean;
+}
+
 export interface HeartbeatSnapshot {
   ts: string;
   current: HeartbeatCurrent | null;
   lock: boolean;
   lock_stale: boolean;
+  /** Projected schedule; absent on backends older than the next-tick widget. */
+  schedule?: HeartbeatSchedule;
 }
 
 export interface LedgerInfo {
@@ -81,6 +98,22 @@ export interface Metrics {
   backlog: { total: number; by_status: Record<string, number> } | null;
   ledgers: LedgerInfo[];
   heartbeat: { lock: boolean; lock_stale: boolean };
+}
+
+// Drain backlog: eligible text parts newer than the consolidation cursor.
+// `pending_turns` is null when the opencode database could not be read.
+export interface MemoryPending {
+  ts: string;
+  enabled: boolean;
+  provider: 'both' | 'rag-brain' | 'memory-explorer' | 'none';
+  writer: boolean;
+  paused: boolean;
+  pending_turns: number | null;
+  cursor_last_ts: number | null;
+  cursor_updated_at: string | null;
+  seeded: boolean;
+  available: boolean;
+  error?: string;
 }
 
 export interface HeartbeatError {
@@ -106,6 +139,16 @@ export interface HeartbeatTick {
   outcome?: string;
   token_cost?: number;
   duration_ms?: number;
+  /** Mission child session that produced the tick. */
+  session?: string | null;
+  /** Writer/tool session (drain_run); preferred for the transcript drawer. */
+  tool_session?: string | null;
+  result_status?: 'completed' | 'declined' | 'error' | 'missing';
+  result_missing?: boolean;
+  tool_status?: 'completed' | 'skipped';
+  tool_skipped_but_completed?: boolean;
+  reroll?: { from?: string; reason?: string } | null;
+  declined?: string[];
   mood_event?: string | null;
   gate?: string;
   reason?: string;

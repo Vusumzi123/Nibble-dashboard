@@ -106,6 +106,10 @@ body {
   border: 1px solid var(--ph-border);
   border-radius: var(--ph-radius-md);
   overflow: hidden;
+  /* The stream is a fixed-height (max-height) flex column; without this the
+     items default to flex-shrink:1 and compress to fit — clipping every
+     message body. Keep messages their natural height and let .stream scroll. */
+  flex-shrink: 0;
 }
 
 .msg__head {
