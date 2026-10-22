@@ -65,6 +65,10 @@ export class FlightPage {
 
   protected readonly schedule = computed(() => this.store.heartbeat()?.schedule ?? null);
 
+  // Drain consumer pointer (drain-consumer-plan §6.1): rides the queues
+  // snapshot the store already polls — no extra request.
+  protected readonly drain = computed(() => this.store.queues()?.drain ?? null);
+
   // Countdown recomputes on the store's 1 s clock (the snapshot only polls
   // every 2 s), so the display stays smooth while the server owns the truth.
   protected readonly untilNextTickMs = computed(() => {

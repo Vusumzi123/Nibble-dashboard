@@ -23,6 +23,7 @@ export class App implements OnInit {
   protected readonly nav: NavItem[] = [
     { path: '/flight', label: 'flight' },
     { path: '/output', label: 'output & thoughts' },
+    { path: '/queues', label: 'queues' },
     { path: '/metrics', label: 'metrics' },
     { path: '/missions', label: 'missions' },
     { path: '/setup', label: 'setup' },

@@ -10,6 +10,7 @@ import {
   MessageRow,
   Metrics,
   MissionsSnapshot,
+  QueuesSnapshot,
 } from './models';
 
 const POLL_MS = 2000;
@@ -25,6 +26,8 @@ export class DashboardStore {
   readonly heartbeat = signal<HeartbeatSnapshot | null>(null);
   readonly metrics = signal<Metrics | null>(null);
   readonly memoryPending = signal<MemoryPending | null>(null);
+  readonly queues = signal<QueuesSnapshot | null>(null);
+  readonly queuesError = signal<string | null>(null);
   readonly config = signal<ConfigSnapshot | null>(null);
   readonly missions = signal<MissionsSnapshot | null>(null);
   readonly missionsError = signal<string | null>(null);
@@ -46,12 +49,15 @@ export class DashboardStore {
   async start(): Promise<void> {
     await this.loadStatic();
     await this.loadMissions();
-    await Promise.all([this.poll(), this.loadMemoryPending()]);
+    await Promise.all([this.poll(), this.loadMemoryPending(), this.loadQueues()]);
     if (this.pollTimer === null) {
       this.pollTimer = setInterval(() => void this.poll(), POLL_MS);
     }
     if (this.pendingTimer === null) {
-      this.pendingTimer = setInterval(() => void this.loadMemoryPending(), PENDING_MS);
+      this.pendingTimer = setInterval(() => {
+        void this.loadMemoryPending();
+        void this.loadQueues();
+      }, PENDING_MS);
     }
     if (this.clockTimer === null) {
       this.clockTimer = setInterval(() => this.now.set(Date.now()), 1000);
@@ -81,6 +87,19 @@ export class DashboardStore {
       this.memoryPending.set(await this.api.memoryPending());
     } catch {
       this.memoryPending.set(null);
+    }
+  }
+
+  // Lane queues are file-backed and cheap to parse (the backend caches 2 s), so
+  // they ride the same 5 s cadence as the memory pill. A 404 (older backend)
+  // lands in queuesError instead of the global unreachable banner.
+  async loadQueues(): Promise<void> {
+    try {
+      this.queues.set(await this.api.queues());
+      this.queuesError.set(null);
+    } catch (err) {
+      this.queues.set(null);
+      this.queuesError.set(errorText(err));
     }
   }
 

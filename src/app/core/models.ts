@@ -112,6 +112,38 @@ export interface MemoryPending {
   cursor_last_ts: number | null;
   cursor_updated_at: string | null;
   seeded: boolean;
+  // Consumer-loop dials (drain-consumer-plan §6.1).
+  consumer?: boolean;
+  trigger_pending?: number;
+  trigger_max_age_hours?: number;
+  next_due?: number | null;
+  oldest_pending_age_ms?: number | null;
+  available: boolean;
+  error?: string;
+}
+
+// Drain consumer loop (`state/drain.current.json` + the last drain.log lines).
+export interface DrainSnapshot {
+  ts: string;
+  enabled: boolean;
+  consumer: boolean;
+  state: 'idle' | 'running' | 'unknown';
+  trigger: string | null;
+  pass: number;
+  pending: number | null;
+  oldest_pending_age_ms: number | null;
+  trigger_pending: number;
+  trigger_max_age_hours: number;
+  next_due: number | null;
+  wake: { passes: number; wake_tokens: number; wall_ms: number; stopped: string | null } | null;
+  last_pass: {
+    ts: string;
+    wall_ms: number;
+    tokens: number;
+    sessions: number;
+    items: number;
+    outcome: string;
+  } | null;
   available: boolean;
   error?: string;
 }
@@ -212,6 +244,93 @@ export interface MissionsSnapshot {
 export interface MissionToggleResult {
   id: string;
   enabled: boolean;
+}
+
+// Lane queues (`state/lanes.json`) — queue-monitoring plan.
+// `drain` appears in runs/tokens only — the consumer loop left the queues
+// (drain-consumer-plan §6.1).
+export type LaneName = 'primary' | 'side' | 'drain';
+
+export interface QueueItemView {
+  id: string;
+  title: string | null;
+  kind: string;
+  lane: LaneName;
+  producer: string;
+  enqueued_ms: number | null;
+  age_ms: number | null;
+  expires_ms: number | null;
+  ttl_ms: number | null;
+  requeue_count: number;
+  requeue_reason: string | null;
+}
+
+export interface QueuesSnapshot {
+  ts: string;
+  primary: QueueItemView[];
+  side: QueueItemView[];
+  running: {
+    mission: string | null;
+    mission_title: string | null;
+    side_mission: string | null;
+    side_mission_title: string | null;
+  };
+  // Drain consumer pointer (drain-consumer-plan §6.1): the loop's live
+  // state beside the lanes — absent on older backends.
+  drain?: {
+    consumer: boolean;
+    state: 'idle' | 'running' | 'unknown';
+    pending: number | null;
+    next_due: number | null;
+  } | null;
+  available: boolean;
+  error?: string;
+}
+
+// One child run flattened from `logs/heartbeat.log` (`runs[]`, legacy fallback).
+export interface RunRow {
+  ts: string;
+  tick: number | null;
+  mission: string | null;
+  mission_title: string | null;
+  lane: LaneName;
+  outcome: string | null;
+  token_cost: number | null;
+  over_budget: boolean;
+  result_status: string | null;
+  result_missing: boolean;
+  requeued: boolean;
+  session: string | null;
+  tool_session: string | null;
+  tool_outcome: string | null;
+  duration_ms: number | null;
+}
+
+export interface RunsSnapshot {
+  ts: string;
+  runs: RunRow[];
+  available: boolean;
+  error?: string;
+}
+
+export type TokenBucket = 'tick' | 'hour' | 'day';
+
+export interface TokenPoint {
+  bucket: string;
+  tokens: number;
+  runs: number;
+  over_runs: number;
+  tick?: number;
+}
+
+export interface TokenSeries {
+  ts: string;
+  bucket: TokenBucket;
+  budget_per_run: number | null;
+  points: TokenPoint[];
+  totals: { tokens: number; runs: number; over_runs: number };
+  available: boolean;
+  error?: string;
 }
 
 // opencode serve shapes (proxied through /api/serve) — structurally loose.

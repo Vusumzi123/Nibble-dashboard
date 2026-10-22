@@ -86,6 +86,13 @@
       <dd>{{ schedule()?.frequency ?? '—' }}</dd>
       <dt>next tick at</dt>
       <dd>{{ fmtTime(schedule()?.next_tick) }}</dd>
+      @if (drain(); as d) {
+        <dt>drain loop</dt>
+        <dd>
+          {{ d.state }}@if (d.pending !== null) {, pending {{ d.pending }}}
+          @if (d.next_due !== null) {, next wake {{ fmtTime(d.next_due) }}}
+        </dd>
+      }
     </dl>
   </div>
 </div>
